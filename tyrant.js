@@ -1,4 +1,4 @@
-var conn = new node.tcp.Connection();
+var conn;
 var callbacks=[];
 var response=[];
 
@@ -9,7 +9,10 @@ exports.ITVOID = 9999;
 exports.ITKEEP = 16777216;
 
 exports.connect = function(port, hostname) {
-    conn.connect(port || 1978, hostname || '127.0.0.1');
+  conn=node.tcp.createConnection(port || 1978, hostname || '127.0.0.1');
+  conn.addListener("connect", onConnect);
+  conn.addListener("receive", onReceive);
+  conn.addListener("disconnect", onDisconnect);
 }
 
 
@@ -281,7 +284,7 @@ exports.dict = function (r) {
 
 
 
-conn.onReceive = function(data) {
+function onReceive(data) {
   //puts('Received: '+data.length+', response : '+response.length);
   //pprint(data);
   response=response.concat(data);
@@ -313,11 +316,11 @@ exports.quit = function() {
   conn.close();
 }
 
-conn.onConnect = function() {
+function onConnect() {
   conn.setEncoding("raw");
 }
 
-conn.onDisconnect = function(hadError) {
+function onDisconnect(hadError) {
   if (hadError)
     throw "disconnected from Tyrant server in error";
 }
