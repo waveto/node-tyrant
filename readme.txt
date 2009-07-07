@@ -19,12 +19,19 @@ ttserver casket.tcb
 
 Quick Example
 
-var tyrant = require("tyrant.js");
-tyrant.put('town', 'Bangor');
 
-tyrant.get('town', function(value, error) {
-  puts('Result '+i+' : '+value);
-});
+var tyrant = require("tyrant.js");
+
+function onLoad () {
+  tyrant.connect();
+  tyrant.put('town', 'Bangor');
+  tyrant.get('town', function(value, error) {
+    puts('Result : '+value);
+  });
+  tyrant.quit();
+}
+
+Run demo.js for a more complete demo
 
 
 
