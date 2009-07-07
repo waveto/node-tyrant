@@ -39,6 +39,17 @@ function simpleStoreAndRetreive() {
 }
 
 
+function appendToRecord() {
+  tyrant.put('key1', 'First Value');
+  tyrant.putcat('key1', '+Second Value');
+  tyrant.get('key1', function(value, error) {if (error) puts('Error : '+error); else puts('Result : '+value);});
+}
+
+function addToCounter() {
+  tyrant.addint('counter', 1, function(value, error) {puts('Result '+value);});
+}
+
+
 function tableStoreAndRetreive() {
   puts('Writing 10 table records..');
   for (var i=0; i<10; i++) {
@@ -69,16 +80,57 @@ function tableStoreAndRetreiveWithClosure() {
   }
 }
 
+
+function tableSearchExample() {
+  // Store some names and create an index
+  tyrant.put('k1', 'name', 'Joe Blogs');
+  tyrant.put('k2', 'name', 'Joe Smith');
+  tyrant.put('k3', 'name', 'Bill Smith');
+  tyrant.setindex('name', tyrant.ITLEXICAL, function(value, error) {if (error) puts('Error : '+error); else puts('Result : '+value);});
+
+  // Do a test get
+  tyrant.get('k1', function(value) {value=tyrant.dict(value); puts('Name = '+value.name);});
+
+  // Do some searches
+  tyrant.search(tyrant.starts('name', 'Joe'), tyrant.sort('name', 'asc'), function(value, error) {if (error) puts('Error : '+error); else puts('Result : '+value);});
+  tyrant.search(tyrant.starts('name', 'Joe'), tyrant.sort('name', 'desc'), function(value, error) {if (error) puts('Error : '+error); else puts('Result : '+value);});
+  tyrant.search(tyrant.ends('name', 'Smith'), function(value, error) {if (error) puts('Error : '+error); else puts('Result : '+value);});
+  tyrant.search(tyrant.starts('name', 'Joe'),tyrant.ends('name', 'Smith'), function(value, error) {if (error) puts('Error : '+error); else puts('Result : '+value);});
+
+  // Add a few more records
+  for (var i=0; i<20; i++) {
+    tyrant.put('ki'+i, 'name', 'Mr '+i);
+  }
+
+
+  // Do some more searches
+  tyrant.search(tyrant.starts('name', 'Mr'), tyrant.sort('name', 'asc'), function(value, error) {if (error) puts('Error : '+error); else puts('Result : '+value);});
+  tyrant.search(tyrant.starts('name', 'Mr'), tyrant.sort('name', 'desc'), function(value, error) {if (error) puts('Error : '+error); else puts('Result : '+value);});
+
+  // Test limit and offset
+  tyrant.search(tyrant.starts('name', 'Mr'), tyrant.sort('name', 'asc'), tyrant.limit(5, 5), function(value, error) {if (error) puts('Error : '+error); else puts('Result : '+value);});
+
+  tyrant.getlist(['ki0', 'ki1'], function(v) {
+		   for (var i=0; i<v.length; i++) {
+		     puts('Name : '+v[i]);
+		   }
+		 });
+
+  // Test some helper functions
+  tyrant.get('ki0', function(value) {value=tyrant.dict(value); puts('Name = '+value.name);});
+}
+
 function generalDemo() {
   simpleStoreAndRetreive();
-
+  appendToRecord();
+  addToCounter();
 }
 
 
 function tableDemo(){
   tableStoreAndRetreive();
   tableStoreAndRetreiveWithClosure();
-
+  tableSearchExample();
 }
 
 function runDemo() {
