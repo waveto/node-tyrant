@@ -3,6 +3,9 @@ node-tyrant
 
 This is an implementation of the Tokyo Tyrant network protocol for the Node javascript/v8 language.
 
+Update: v0.1.1
+node-tyrant has been updated to use the new binary stream representation, and now uses promises for callbacks.
+
 Install Tokyo Cabinet / Tokyo Tyrant, and set up either a b-tree or table database:
 
 For a table database:
@@ -15,16 +18,18 @@ ttserver casket.tcb
 Quick Example
 ------------
 
+
 var tyrant = require("tyrant.js");
 
-function onLoad () {
-  tyrant.connect();
-  tyrant.put('town', 'Bangor');
-  tyrant.get('town', function(value, error) {
-    puts('Result : '+value);
+var c = tyrant.connect();
+c.addListener("connect", function (){
+  c.put('town', 'Bangor');
+  c.get('town').addCallback(function(value) {
+    puts('Town : '+value);
+    c.quit();
   });
-  tyrant.quit();
-}
+});
+
 
 
 

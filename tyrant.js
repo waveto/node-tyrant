@@ -1,7 +1,8 @@
 // node-tyrant.js
 //
 // A node.js network inerface for Tokyo Tyrant
-// Version 0.1
+// Version 0.1.1
+// Requires node 0.1.13 or later
 // Rhys Jones, Acknack Ltd 2009
 //
 // Copyright 2009, Acknack Ltd. All rights reserved.
@@ -23,10 +24,14 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+include('/tcp.js');
+include('/utils.js');
 
 var conn;
 var callbacks=[];
-var response=[];
+var response='';
+var emitter=new node.EventEmitter();
+var TCMD=String.fromCharCode(0xC8);
 
 exports.ITLEXICAL = '0';
 exports.ITDECIMAL = '1';
@@ -34,24 +39,31 @@ exports.ITOPT = 9998;
 exports.ITVOID = 9999;
 exports.ITKEEP = 16777216;
 
+
+exports.addListener = function(event, listener) {
+    emitter.addListener(event, listener);
+}
+
+
 exports.connect = function(port, hostname) {
-  conn=node.tcp.createConnection(port || 1978, hostname || '127.0.0.1');
+  conn=createConnection(port || 1978, hostname || '127.0.0.1');
   conn.addListener("connect", onConnect);
   conn.addListener("receive", onReceive);
   conn.addListener("disconnect", onDisconnect);
+  return this;
 }
 
 
 // List of Command hex codes for Tyrant
 var commandCode = {
-  misc: 0x90,
-  get: 0x30,
-  out: 0x20,
-  vsiz: 0x38,
-  iterinit: 0x50,
-  iternext: 0x51,
-  status: 0x88,
-  addint: 0x60,
+    misc: String.fromCharCode(0x90),
+    get: String.fromCharCode(0x30),
+    out: String.fromCharCode(0x20),
+    vsiz: String.fromCharCode(0x38),
+    iterinit: String.fromCharCode(0x50),
+    iternext: String.fromCharCode(0x51),
+    status: String.fromCharCode(0x88),
+    addint: String.fromCharCode(0x60),
 }
 
 // Commands and their request and response functions
@@ -90,31 +102,26 @@ var queries = {
   'eqone' : '14',
 }
 
-// Convert to unsinged int
-function ui(i){
-  return i>=0?i:i+256;
-}
-
-// Take a raw byte array and return a utf8 string
+// Take a raw binary string and return a utf8 string
 function decode_utf8(a) {
   var string = "";
   var i = 0;
   var c = c1 = c2 = 0;
 
   while ( i < a.length ) {
-    c = ui(a[i]);
+    c = a.charCodeAt(i);
     if (c < 128) {
       string += String.fromCharCode(c);
       i++;
     }
     else if((c > 191) && (c < 224)) {
-      c2 = ui(a[i+1]);
+	c2 = a.charCodeAt(i+1);
       string += String.fromCharCode(((c & 31) << 6) | (c2 & 63));
       i += 2;
     }
     else {
-      c2 = ui(a[i+1]);
-      c3 = ui(a[i+2]);
+	c2 = a.charCodeAt(i+1);
+	c3 = a.charCodeAt(i+2);
       string += String.fromCharCode(((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63));
       i += 3;
     }
@@ -123,100 +130,96 @@ function decode_utf8(a) {
 }
 
 
-// Take a utf8 string and return a raw array
+// Take a utf8 string and return a binary string
 function encode_utf8(s) {
-  var a=[];
+  var a="";
   for (var n=0; n< s.length; n++) {
     var c=s.charCodeAt(n);
     if (c<128) {
-      a.push(c);
+	a += String.fromCharCode(c);
     }
     else if ((c>127)&&(c<2048)) {
-      a.push( (c>>6) | 192);
-      a.push( (c&63) | 128);
+	a += String.fromCharCode( (c>>6) | 192) ;
+	a += String.fromCharCode( (c&63) | 128);
     }
     else {
-      a.push( (c>>12) | 224);
-      a.push( ((c>>6) & 63) | 128);
-      a.push( (c&63) | 128);
+      a += String.fromCharCode( (c>>12) | 224);
+      a += String.fromCharCode( ((c>>6) & 63) | 128);
+      a += String.fromCharCode( (c&63) | 128);
     }
   }
   return a;
 }
 
-// Convert a 4 byte array into a 32-bit int
+// Convert a 4 byte binary string into a 32-bit int
 function unpackInt(si) {
-  return (ui(si[0])*256*256*256)+(ui(si[1])*256*256)+(ui(si[2])*256)+ui(si[3]);
+    return (si.charCodeAt(0)*256*256*256)+(si.charCodeAt(1)*256*256)+(si.charCodeAt(2)*256)+si.charCodeAt(3);
 }
 
-// Convert an int into a 4 byte array
+// Convert an int into a 4 byte binary sting
 function packInt(i) {
-  return [Math.floor(i/(256*3))&0xff, Math.floor(i/(256*2))&0xff, Math.floor(i/256)&0xff, i%256];
+    return String.fromCharCode(Math.floor(i/(256*3))&0xff) + String.fromCharCode(Math.floor(i/(256*2))&0xff) + String.fromCharCode(Math.floor(i/256)&0xff) + String.fromCharCode(i%256);
 }
 
 
 function pprint(s) {
   for (var i=0; i<s.length; i++) {
-    if (s[i]<32) {puts(s[i]+' : ');}
-    else {puts(s[i]+' : '+String.fromCharCode(s[i]));}
+      if (s.charCodeAt(i)<32) {puts(s.charCodeAt(i)+' : ');}
+      else {puts(s.charCodeAt(i)+' : '+ s.charAt(i));}
   }
 }
 
 function formatNone(commandName, commandArgs, argCount, opts) {
-  var cmd=[0xC8].concat(commandCode[commandName]);
-  return cmd;
+  return TCMD + commandCode[commandName];
 }
 
 function formatSingle(commandName, commandArgs, argCount, opts) {
   var d=encode_utf8(commandArgs[0]);
-  var cmd=[0xC8].concat(commandCode[commandName]).concat(packInt(d.length)).concat(d);
-  return cmd;
+  return TCMD + commandCode[commandName] + packInt(d.length) + d;
 }
 
 function formatInt(commandName, commandArgs, argCount, opts) {
   var k=encode_utf8(commandArgs[0]);
   var i=packInt(commandArgs[1]);
-  var cmd=[0xC8].concat(commandCode[commandName]).concat(packInt(k.length)).concat(i).concat(k);
-  return cmd;
+  return TCMD + commandCode[commandName] + packInt(k.length) + i + k;
 }
 
 function formatMisc(commandName, commandArgs, argCount, opts) {
   var cmdName=encode_utf8(commandName);
-  var cmdArgs=[];
+  var cmdArgs='';
   var cmdCount=0;
   for (var i=0; i<argCount; i++) {
     if (typeof commandArgs[i]=='string') {
       var d=encode_utf8(commandArgs[i]);
-      cmdArgs = cmdArgs.concat(packInt(d.length)).concat(d);
+      cmdArgs += packInt(d.length) + d;
       cmdCount++;
     } else {
       // Deal with an array of strings
       for (var j=0; j<commandArgs[i].length; j++) {
 	var d=encode_utf8(commandArgs[i][j]);
-	cmdArgs = cmdArgs.concat(packInt(d.length)).concat(d);
+	cmdArgs += packInt(d.length) + d;
 	cmdCount++;
       }
     }
   }
-  var cmd=[0xC8].concat(commandCode.misc).concat(packInt(cmdName.length)).concat(packInt(opts || 0)).concat(packInt(cmdCount)).concat(cmdName).concat(cmdArgs);
-  return cmd;
+  return TCMD + commandCode.misc + packInt(cmdName.length) + packInt(opts || 0) + packInt(cmdCount) + cmdName + cmdArgs;
 }
 
 
 function responseNone(data) {
-  if (data[0]!=0) return [null, 1, 'Tyrant Error : '+data[0]];
+    if (data.charCodeAt(0)!=0) return [null, 1, 'Tyrant Error : '+data.charCodeAt(0)];
   return [0, 1, null];
 }
 
 function responseInt(data) {
-  if (data[0]!=0) return [null, 1, 'Tyrant Error : '+data[0]];
+    if (data.charCodeAt(0)!=0) return [null, 1, 'Tyrant Error : '+data.charCodeAt(0)];
   if (data.length<5) return [null, -1, null];
   var rlen=unpackInt(data.slice(1, 5));
   return [rlen, 5, null];
 }
 
 function responseSingle(data) {
-  if (data[0]!=0) return [null, 1, 'Tyrant Error : '+data[0]];
+  if (data.charCodeAt(0)!=0) return [null, 1, 'Tyrant Error : '+data.charCodeAt(0)];
   if (data.length<5) return [null, -1, null];
   var rlen=unpackInt(data.slice(1, 5));
   if (data.length<(rlen+5)) return [null, -1, null];
@@ -224,7 +227,7 @@ function responseSingle(data) {
 }
 
 function responseMisc(data) {
-  if (data[0]!=0) return [null, 5, 'Tyrant Error : '+data[0]];
+  if (data.charCodeAt(0)!=0) return [null, 1, 'Tyrant Error : '+data.charCodeAt(0)];
   if (data.length<9) return [null, -1, null];
   var r=[];
   var c=1;
@@ -244,14 +247,7 @@ function createCommandSender(commandName) {
       throw "connection is not open";
     }
 
-    var callback = null;
     var numArgs = arguments.length;
-
-    if (typeof(arguments[arguments.length-1])=='function') {
-      callback = arguments[arguments.length-1];
-      numArgs=arguments.length-1;
-    }
-
     var cmd;
 
    if (commands[commandName]) {
@@ -260,8 +256,10 @@ function createCommandSender(commandName) {
       throw 'unknown command '+commandName;
     }
 
-    callbacks.push( { cb:callback, cmd:commandName });
-    conn.send(cmd, "raw");
+    var promise = new node.Promise;
+    callbacks.push( { 'cmd':commandName, 'promise':promise });
+    conn.send(cmd, "binary");
+    return promise;
   }
 }
 
@@ -311,9 +309,9 @@ exports.dict = function (r) {
 
 
 function onReceive(data) {
-  //puts('Received: '+data.length+', response : '+response.length);
-  //pprint(data);
-  response=response.concat(data);
+    //puts('Received: '+data.length+', response : '+response.length);
+    //pprint(data);
+  response += data;
   var offset=0;
   while (callbacks[0] && (offset>=0) && (response.length>0)) {
     var resultHandler=commands[callbacks[0].cmd][1];
@@ -326,8 +324,9 @@ function onReceive(data) {
     }
     if ( offset>=0 || result || err ) {
       var callback = callbacks.shift();
-      if (callback && callback.cb) {
-	callback.cb(result, err);
+      if (callback && callback.promise) {
+	  if (result) {callback.promise.emitSuccess(result);}
+	  if (err) {callback.promise.emitError(err);}
       }
     }
   }
@@ -337,12 +336,13 @@ function onReceive(data) {
 exports.quit = function() {
   if (conn.readyState != "open")
     throw "connection is not open";
-
   conn.close();
+  emitter.emit("close");
 }
 
 function onConnect() {
-  conn.setEncoding("raw");
+  conn.setEncoding("binary");
+  emitter.emit("connect");
 }
 
 function onDisconnect(hadError) {
