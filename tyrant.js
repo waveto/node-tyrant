@@ -1,7 +1,7 @@
 // node-tyrant.js
 //
 // A node.js network inerface for Tokyo Tyrant
-// Version 0.1.1
+// Version 0.1.2
 // Requires node 0.1.13 or later
 // Rhys Jones, Acknack Ltd 2009
 //
