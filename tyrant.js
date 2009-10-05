@@ -81,6 +81,7 @@ var commands = {
   setindex:[formatMisc, responseSingle],
   search:[formatMisc, responseMisc],
   addint:[formatInt, responseInt],
+  genuid:[formatMisc, responseMisc],
 }
 
 // Filter queries for search
