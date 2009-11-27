@@ -1,8 +1,8 @@
 // node-tyrant.js
 //
 // A node.js network inerface for Tokyo Tyrant
-// Version 0.1.2
-// Requires node 0.1.13 or later
+// Version 0.1.3
+// Requires node 0.1.18 or later
 // Rhys Jones, Acknack Ltd 2009
 //
 // Copyright 2009, Acknack Ltd. All rights reserved.
@@ -24,13 +24,15 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-include('/tcp.js');
-include('/utils.js');
+var tcp = require('tcp');
+//process.mixin(GLOBAL, 'tcp');
+
+var sys = require('sys');
 
 var conn;
 var callbacks=[];
 var response='';
-var emitter=new node.EventEmitter();
+var emitter=new process.EventEmitter();
 var TCMD=String.fromCharCode(0xC8);
 
 exports.ITLEXICAL = '0';
@@ -46,7 +48,7 @@ exports.addListener = function(event, listener) {
 
 
 exports.connect = function(port, hostname) {
-  conn=createConnection(port || 1978, hostname || '127.0.0.1');
+  conn=tcp.createConnection(port || 1978, hostname || '127.0.0.1');
   conn.addListener("connect", onConnect);
   conn.addListener("receive", onReceive);
   conn.addListener("disconnect", onDisconnect);
@@ -165,8 +167,8 @@ function packInt(i) {
 
 function pprint(s) {
   for (var i=0; i<s.length; i++) {
-      if (s.charCodeAt(i)<32) {puts(s.charCodeAt(i)+' : ');}
-      else {puts(s.charCodeAt(i)+' : '+ s.charAt(i));}
+      if (s.charCodeAt(i)<32) {sys.puts(s.charCodeAt(i)+' : ');}
+      else {sys.puts(s.charCodeAt(i)+' : '+ s.charAt(i));}
   }
 }
 
@@ -257,7 +259,7 @@ function createCommandSender(commandName) {
       throw 'unknown command '+commandName;
     }
 
-    var promise = new node.Promise;
+    var promise = new process.Promise;
     callbacks.push( { 'cmd':commandName, 'promise':promise });
     conn.send(cmd, "binary");
     return promise;
@@ -310,7 +312,7 @@ exports.dict = function (r) {
 
 
 function onReceive(data) {
-    //puts('Received: '+data.length+', response : '+response.length);
+    //sys.puts('Received: '+data.length+', response : '+response.length);
     //pprint(data);
   response += data;
   var offset=0;
