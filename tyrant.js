@@ -161,7 +161,7 @@ function unpackInt(si) {
 
 // Convert an int into a 4 byte binary sting
 function packInt(i) {
-    return String.fromCharCode(Math.floor(i/(256*3))&0xff) + String.fromCharCode(Math.floor(i/(256*2))&0xff) + String.fromCharCode(Math.floor(i/256)&0xff) + String.fromCharCode(i%256);
+    return String.fromCharCode(Math.floor(i/Math.pow(256,3))&0xff) + String.fromCharCode(Math.floor(i/Math.pow(256,2))&0xff) + String.fromCharCode(Math.floor(i/256)&0xff) + String.fromCharCode(i%256);
 }
 
 
@@ -215,7 +215,7 @@ function responseNone(data) {
 }
 
 function responseInt(data) {
-    if (data.charCodeAt(0)!=0) return [null, 1, 'Tyrant Error : '+data.charCodeAt(0)];
+  if (data.charCodeAt(0)!=0) return [null, 1, 'Tyrant Error : '+data.charCodeAt(0)];
   if (data.length<5) return [null, -1, null];
   var rlen=unpackInt(data.slice(1, 5));
   return [rlen, 5, null];
@@ -312,8 +312,8 @@ exports.dict = function (r) {
 
 
 function onReceive(data) {
-    //sys.puts('Received: '+data.length+', response : '+response.length);
-    //pprint(data);
+  //sys.puts('Received: '+data.length+', response : '+response.length);
+  //pprint(data);
   response += data;
   var offset=0;
   while (callbacks[0] && (offset>=0) && (response.length>0)) {
