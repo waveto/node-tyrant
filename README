@@ -3,6 +3,9 @@ node-tyrant
 
 This is an implementation of the Tokyo Tyrant network protocol for the Node javascript/v8 language.
 
+Update: v0.2
+updated to move from promises to function(err, value) callbacks in node.js
+
 Update: v0.1.3
 updated to use the updated module structure of node.
 
@@ -28,16 +31,14 @@ var sys = require('sys');
 var c = tyrant.connect();
 
 c.addListener("connect", function (){
-  c.genuid().addCallback(function(v) {sys.puts(v);});
-
+  c.genuid(function(err, v) {sys.puts(v);});
   c.put('0', 'town', 'Bangor € 1');
-  c.get('0').addCallback(function(values) {
+  c.get('0', function(err, values) {
     var r=tyrant.dict(values);
     sys.puts(r.town);
     c.quit();
   });
 });
-
 
 
 

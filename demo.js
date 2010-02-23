@@ -34,7 +34,7 @@ function simpleStoreAndRetreive() {
   }
   sys.puts('Reading 10 records :');
   for (var i=0; i<10; i++) {
-      tyrant.get('val_'+i).addCallback(function(value) {
+      tyrant.get('val_'+i, function(err, value) {
       sys.puts('Result '+i+' : '+value);
     });
   }
@@ -44,11 +44,14 @@ function simpleStoreAndRetreive() {
 function appendToRecord() {
   tyrant.put('key1', 'First Value');
   tyrant.putcat('key1', '+Second Value');
-  tyrant.get('key1').addCallback(function(value) {sys.puts('Result : '+value);}).addErrback(function(error) {sys.puts('Error : '+error);});
+  tyrant.get('key1', function(err, value) {
+    if (err) {sys.puts('Error : '+error);}
+    sys.puts('Result : '+value);
+  });
 }
 
 function addToCounter() {
-    tyrant.addint('counter', 1).addCallback(function(value) {sys.puts('Result '+value);});
+    tyrant.addint('counter', 1, function(err, value) {sys.puts('Result '+value);});
 }
 
 
@@ -59,7 +62,7 @@ function tableStoreAndRetreive() {
   }
   sys.puts('Reading 10 table records :');
   for (var i=0; i<10; i++) {
-      tyrant.get('k_'+i).addCallback(function(values) {
+      tyrant.get('k_'+i, function(err, values) {
       var r=tyrant.dict(values);
       sys.puts('Result '+i+' : name = '+r.name); // is always 10....
     });
@@ -74,7 +77,7 @@ function tableStoreAndRetreiveWithClosure() {
   sys.puts('Reading 10 table records :');
   for (var i=0; i<10; i++) {
     (function(i) {
-	tyrant.get('k_'+i).addCallback(function(values) {
+	tyrant.get('k_'+i, function(err, values) {
 	 var r=tyrant.dict(values);
 	 sys.puts('Result '+i+' : name = '+r.name); // is now the expected value for i
        });
@@ -88,16 +91,31 @@ function tableSearchExample() {
   tyrant.put('k1', 'name', 'Joe Blogs');
   tyrant.put('k2', 'name', 'Joe Smith');
   tyrant.put('k3', 'name', 'Bill Smith');
-  tyrant.setindex('name', tyrant.ITLEXICAL).addCallback(function(value) {sys.puts('Result : '+value);}).addErrback(function(error) {sys.puts('Error : '+error);});
+  tyrant.setindex('name', tyrant.ITLEXICAL, function(err, value) {
+    if (err) {sys.puts('Error : '+error);}
+    sys.puts('Result : '+value);
+  });
 
   // Do a test get
-  tyrant.get('k1').addCallback(function(value) {value=tyrant.dict(value); sys.puts('Name = '+value.name);});
+  tyrant.get('k1', function(err, value) {value=tyrant.dict(value); sys.puts('Name = '+value.name);});
 
   // Do some searches
-  tyrant.search(tyrant.starts('name', 'Joe'), tyrant.sort('name', 'asc')).addCallback(function(value) {sys.puts('Result : '+value);}).addErrback(function(error) {sys.puts('Error : '+error);});
-  tyrant.search(tyrant.starts('name', 'Joe'), tyrant.sort('name', 'desc')).addCallback(function(value) {sys.puts('Result : '+value);}).addErrback(function(error) {sys.puts('Error : '+error);});
-  tyrant.search(tyrant.ends('name', 'Smith')).addCallback(function(value) {sys.puts('Result : '+value);}).addErrback(function(error) {sys.puts('Error : '+error);});
-  tyrant.search(tyrant.starts('name', 'Joe'),tyrant.ends('name', 'Smith')).addCallback(function(value) {sys.puts('Result : '+value);}).addErrback(function(error) {sys.puts('Error : '+error);});
+  tyrant.search(tyrant.starts('name', 'Joe'), tyrant.sort('name', 'asc'), function(err, value) {
+    if (err) {sys.puts('Error : '+error);}
+    sys.puts('Result : '+value);
+  });
+  tyrant.search(tyrant.starts('name', 'Joe'), tyrant.sort('name', 'desc'), function(err, value) {
+    if (err) {sys.puts('Error : '+error);}
+    sys.puts('Result : '+value);
+  });
+  tyrant.search(tyrant.ends('name', 'Smith'), function(err, value) {
+    if (err) {sys.puts('Error : '+error);}
+    sys.puts('Result : '+value);
+  });
+  tyrant.search(tyrant.starts('name', 'Joe'),tyrant.ends('name', 'Smith'), function(err, value) {
+    if (err) {sys.puts('Error : '+error);}
+    sys.puts('Result : '+value);
+  });
 
   // Add a few more records
   for (var i=0; i<20; i++) {
@@ -106,20 +124,30 @@ function tableSearchExample() {
 
 
   // Do some more searches
-  tyrant.search(tyrant.starts('name', 'Mr'), tyrant.sort('name', 'asc')).addCallback(function(value) {sys.puts('Result : '+value);}).addErrback(function(error) {sys.puts('Error : '+error);});
-  tyrant.search(tyrant.starts('name', 'Mr'), tyrant.sort('name', 'desc')).addCallback(function(value) {sys.puts('Result : '+value);}).addErrback(function(error) {sys.puts('Error : '+error);});
+  tyrant.search(tyrant.starts('name', 'Mr'), tyrant.sort('name', 'asc'), function(err, value) {
+    if (err) {sys.puts('Error : '+error);}
+    sys.puts('Result : '+value);
+  });
+  tyrant.search(tyrant.starts('name', 'Mr'), tyrant.sort('name', 'desc'), function(err, value) {
+    if (err) {sys.puts('Error : '+error);}
+    sys.puts('Result : '+value);
+  });
 
   // Test limit and offset
-  tyrant.search(tyrant.starts('name', 'Mr'), tyrant.sort('name', 'asc'), tyrant.limit(5, 5)).addCallback(function(value) {sys.puts('Result : '+value);}).addErrback(function(error) {sys.puts('Error : '+error);});
+  tyrant.search(tyrant.starts('name', 'Mr'), tyrant.sort('name', 'asc'), tyrant.limit(5, 5), function(err, value) {
+    if (err) {sys.puts('Error : '+error);}
+    sys.puts('Result : '+value);
+  });
 
-  tyrant.getlist(['ki0', 'ki1']).addCallback(function(v) {
+
+  tyrant.getlist(['ki0', 'ki1'], function(err, v) {
 		   for (var i=0; i<v.length; i++) {
 		     sys.puts('Name : '+v[i]);
 		   }
 		 });
 
   // Test some helper functions
-  tyrant.get('ki0').addCallback(function(value) {value=tyrant.dict(value); sys.puts('Name = '+value.name);});
+  tyrant.get('ki0', function(err, value) {value=tyrant.dict(value); sys.puts('Name = '+value.name);});
 }
 
 function generalDemo() {
@@ -137,7 +165,7 @@ function tableDemo(){
 
 function runDemo() {
 
-    tyrant.status().addCallback(function(s) {
+    tyrant.status(function(err, s) {
     sys.puts('Tokyo Tyrant Server Status');
     sys.puts('--------------------------');
     sys.puts(s);

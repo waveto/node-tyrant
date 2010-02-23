@@ -1,9 +1,9 @@
 // node-tyrant.js
 //
 // A node.js network inerface for Tokyo Tyrant
-// Version 0.1.3
-// Requires node 0.1.18 or later
-// Rhys Jones, Acknack Ltd 2009
+// Version 0.2
+// Requires node 0.1.30 or later
+// Rhys Jones, Acknack Ltd 2010
 //
 // Copyright 2009, Acknack Ltd. All rights reserved.
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -50,7 +50,7 @@ exports.addListener = function(event, listener) {
 exports.connect = function(port, hostname) {
   conn=tcp.createConnection(port || 1978, hostname || '127.0.0.1');
   conn.addListener("connect", onConnect);
-  conn.addListener("receive", onReceive);
+  conn.addListener("data", onData);
   conn.addListener("disconnect", onDisconnect);
   return this;
 }
@@ -230,7 +230,7 @@ function responseSingle(data) {
 }
 
 function responseMisc(data) {
-  if (data.charCodeAt(0)!=0) return [null, 1, 'Tyrant Error : '+data.charCodeAt(0)];
+  if (data.charCodeAt(0)!=0) return [null, 5, 'Tyrant Error : '+data.charCodeAt(0)];
   if (data.length<9) return [null, -1, null];
   var r=[];
   var c=1;
@@ -250,19 +250,24 @@ function createCommandSender(commandName) {
       throw "connection is not open";
     }
 
+    var callback = null;
     var numArgs = arguments.length;
+
+    if (typeof(arguments[arguments.length-1])=='function') {
+      callback = arguments[arguments.length-1];
+      numArgs=arguments.length-1;
+    }
+ 
     var cmd;
 
-   if (commands[commandName]) {
+    if (commands[commandName]) {
       cmd = commands[commandName][0](commandName, arguments, numArgs);
     } else {
       throw 'unknown command '+commandName;
     }
 
-    var promise = new process.Promise;
-    callbacks.push( { 'cmd':commandName, 'promise':promise });
-    conn.send(cmd, "binary");
-    return promise;
+    callbacks.push( { cmd:commandName, cb:callback });
+    conn.write(cmd, "binary");
   }
 }
 
@@ -311,7 +316,7 @@ exports.dict = function (r) {
 
 
 
-function onReceive(data) {
+function onData(data) {
   //sys.puts('Received: '+data.length+', response : '+response.length);
   //pprint(data);
   response += data;
@@ -327,9 +332,8 @@ function onReceive(data) {
     }
     if ( offset>=0 || result || err ) {
       var callback = callbacks.shift();
-      if (callback && callback.promise) {
-	  if (result) {callback.promise.emitSuccess(result);}
-	  if (err) {callback.promise.emitError(err);}
+      if (callback && callback.cb) {
+	  callback.cb(err, result);
       }
     }
   }
