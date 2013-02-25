@@ -124,7 +124,7 @@ function decode_utf8(a) {
     }
     else {
 	c2 = a.charCodeAt(i+1);
-	c3 = a.charCodeAt(i+2);
+	var c3 = a.charCodeAt(i+2);
       string += String.fromCharCode(((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63));
       i += 3;
     }
