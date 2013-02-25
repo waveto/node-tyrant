@@ -24,7 +24,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-var tcp = require('tcp');
+var tcp = require('net');
 //process.mixin(GLOBAL, 'tcp');
 
 var sys = require('sys');
@@ -109,7 +109,7 @@ var queries = {
 function decode_utf8(a) {
   var string = "";
   var i = 0;
-  var c = c1 = c2 = 0;
+  var c = 0, c1 = 0, c2 = 0;
 
   while ( i < a.length ) {
     c = a.charCodeAt(i);
@@ -124,7 +124,7 @@ function decode_utf8(a) {
     }
     else {
 	c2 = a.charCodeAt(i+1);
-	c3 = a.charCodeAt(i+2);
+	var c3 = a.charCodeAt(i+2);
       string += String.fromCharCode(((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63));
       i += 3;
     }
@@ -231,13 +231,13 @@ function responseSingle(data) {
 
 function responseMisc(data) {
   if (data.charCodeAt(0)!=0) return [null, 5, 'Tyrant Error : '+data.charCodeAt(0)];
-  if (data.length<9) return [null, -1, null];
+  if (data.length<5) return [null, -1, null];
   var r=[];
   var c=1;
   var resultCount=unpackInt(data.slice(c, c+=4));
   for (var i=0; i<resultCount; i++) {
     var rlen=unpackInt(data.slice(c, c+=4));
-    if (data.length<(c+rlen)) return ['', -1, null];
+    if (isNaN(rlen) || data.length<(c+rlen)) return ['', -1, null];
     r.push(decode_utf8(data.slice(c, c+=rlen)));
   }
   return [ r, c, null];
@@ -343,7 +343,7 @@ function onData(data) {
 exports.quit = function() {
   if (conn.readyState != "open")
     throw "connection is not open";
-  conn.close();
+  conn.destroy();
   emitter.emit("close");
 }
 
